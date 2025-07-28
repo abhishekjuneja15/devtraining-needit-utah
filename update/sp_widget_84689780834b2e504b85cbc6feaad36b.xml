@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sp_widget">
+    <sp_widget action="INSERT_OR_UPDATE">
+        <category>custom</category>
+        <client_script><![CDATA[function($scope) {
+  var c = this;
+  c.message = 'Initializing...';
+  const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
+
+  // Start webcam stream
+  async function startVideo() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      document.getElementById('video').srcObject = stream;
+    } catch (e) {
+      throw 'Camera access denied or unavailable';
+    }
+  }
+
+  c.$onInit = function() {
+    // Dynamically load face-api.js
+    $.getScript('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js')
+      .done(async function() {
+        if (!window.faceapi) {
+          c.message = 'Error: face-api.js did not load.';
+          return;
+        }
+        try {
+          // Load models
+          await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+          await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+          await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+          // Start camera
+          await startVideo();
+          c.message = 'Ready. Click Verify Face';
+        } catch (err) {
+          console.error(err);
+          c.message = 'Error: ' + err;
+        }
+        $scope.$applyAsync();
+      })
+      .fail(function() {
+        c.message = 'Error loading face-api.js';
+        $scope.$applyAsync();
+      });
+  };
+
+  c.verifyFace = async function() {
+    c.message = 'Scanning...';
+    $scope.$applyAsync();
+    try {
+      // Load reference descriptors
+      const labeledDescriptors = await Promise.all(
+        c.data.labels.map(async label => {
+          const img = await faceapi.fetchImage(c.data.imageUrls[label]);
+          const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+            .withFaceLandmarks().withFaceDescriptor();
+          return new faceapi.LabeledFaceDescriptors(label, [detection.descriptor]);
+        })
+      );
+      const matcher = new faceapi.FaceMatcher(labeledDescriptors, 0.5);
+      // Detect from live video
+      const result = await faceapi.detectSingleFace(document.getElementById('video'), new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks().withFaceDescriptor();
+      if (!result) {
+        c.message = 'No face detected';
+      } else {
+        const bestMatch = matcher.findBestMatch(result.descriptor);
+        c.message = (bestMatch.label !== 'unknown') ? '✅ Welcome ' + bestMatch.label : '❌ Face not recognized';
+      }
+    } catch (err) {
+      console.error(err);
+      c.message = 'Error: ' + err;
+    }
+    $scope.$applyAsync();
+  };
+}
+]]></client_script>
+        <controller_as>c</controller_as>
+        <css>&lt;style&gt;
+.face-unlock-widget { text-align: center; padding: 20px; }
+.face-unlock-widget video { border: 2px solid #ccc; border-radius: 8px; margin-bottom: 10px; }
+.face-unlock-widget .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; background-color: #0072c6; color: white; }
+.face-unlock-widget p { margin-top: 8px; font-weight: bold; }
+&lt;/style&gt;</css>
+        <data_table>sp_instance</data_table>
+        <demo_data/>
+        <description/>
+        <docs/>
+        <field_list/>
+        <has_preview>true</has_preview>
+        <id/>
+        <internal>false</internal>
+        <link><![CDATA[function link(scope, element, attrs, controller) {
+  
+}]]></link>
+        <name>Face Unlock</name>
+        <option_schema/>
+        <public>false</public>
+        <roles/>
+        <script><![CDATA[(function() {
+  // Ensure this matches your uploaded image name under Service Portal > Images
+  data.labels = ['UserFace'];
+  data.imageUrls = { 'UserFace': 'https://dev182388.service-now.com/api/now/ui/image?sysparm_image_name=x_58872_needit.user_face.jpg' };
+})();]]></script>
+        <servicenow>false</servicenow>
+        <sys_class_name>sp_widget</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2025-07-25 15:46:11</sys_created_on>
+        <sys_id>84689780834b2e504b85cbc6feaad36b</sys_id>
+        <sys_mod_count>10</sys_mod_count>
+        <sys_name>Face Unlock</sys_name>
+        <sys_package display_value="NeedIt" source="x_58872_needit">6ead8e780f603200cd674f8ce1050ed1</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="NeedIt">6ead8e780f603200cd674f8ce1050ed1</sys_scope>
+        <sys_update_name>sp_widget_84689780834b2e504b85cbc6feaad36b</sys_update_name>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2025-07-25 16:10:57</sys_updated_on>
+        <template><![CDATA[<div class="face-unlock-widget">
+  <h3>Face Unlock</h3>
+  <video id="video" width="320" height="240" autoplay muted></video>
+  <button class="btn" ng-click="c.verifyFace()">]]>🔒<![CDATA[ Verify Face</button>
+  <p>{{c.message}}</p>
+</div>]]></template>
+    </sp_widget>
+    <sys_es_latest_script action="INSERT_OR_UPDATE">
+        <id>84689780834b2e504b85cbc6feaad36b</id>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2025-07-25 15:45:57</sys_created_on>
+        <sys_id>45e8934c830b2e504b85cbc6feaad359</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2025-07-25 15:45:57</sys_updated_on>
+        <table>sp_widget</table>
+        <use_es_latest>true</use_es_latest>
+    </sys_es_latest_script>
+</record_update>
